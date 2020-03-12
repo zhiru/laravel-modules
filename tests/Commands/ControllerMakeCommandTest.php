@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -17,7 +18,7 @@ class ControllerMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -25,9 +26,9 @@ class ControllerMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -82,6 +83,20 @@ class ControllerMakeCommandTest extends BaseTestCase
     }
 
     /** @test */
+    public function it_generates_an_api_controller()
+    {
+        $this->artisan('module:make-controller', [
+            'controller' => 'MyController',
+            'module' => 'Blog',
+            '--api' => true,
+        ]);
+
+        $file = $this->finder->get($this->modulePath . '/Http/Controllers/MyController.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
     public function it_can_change_the_default_namespace()
     {
         $this->app['config']->set('modules.paths.generator.controller.path', 'Controllers');
@@ -89,6 +104,18 @@ class ControllerMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-controller', ['controller' => 'MyController', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/Controllers/MyController.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.controller.namespace', 'Controllers');
+
+        $this->artisan('module:make-controller', ['controller' => 'MyController', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Http/Controllers/MyController.php');
 
         $this->assertMatchesSnapshot($file);
     }

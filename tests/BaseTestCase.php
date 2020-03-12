@@ -7,11 +7,13 @@ use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class BaseTestCase extends OrchestraTestCase
 {
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
 
-        $this->withoutMockingConsoleOutput();
+        if (method_exists($this, 'withoutMockingConsoleOutput')) {
+            $this->withoutMockingConsoleOutput();
+        }
         // $this->setUpDatabase();
     }
 
@@ -66,7 +68,8 @@ abstract class BaseTestCase extends OrchestraTestCase
                 'views' => ['path' => 'Resources/views', 'generate' => true],
                 'policies' => ['path' => 'Policies', 'generate' => true],
                 'rules' => ['path' => 'Rules', 'generate' => true],
-                'test' => ['path' => 'Tests', 'generate' => true],
+                'test-feature' => ['path' => 'Tests/Feature', 'generate' => true],
+                'test' => ['path' => 'Tests/Unit', 'generate' => true],
                 'jobs' => ['path' => 'Jobs', 'generate' => true],
                 'emails' => ['path' => 'Emails', 'generate' => true],
                 'notifications' => ['path' => 'Notifications', 'generate' => true],

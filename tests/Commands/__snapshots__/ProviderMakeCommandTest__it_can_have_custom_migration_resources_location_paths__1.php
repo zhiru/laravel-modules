@@ -8,11 +8,14 @@ use Illuminate\\Database\\Eloquent\\Factory;
 class BlogServiceProvider extends ServiceProvider
 {
     /**
-     * Indicates if loading of the provider is deferred.
-     *
-     * @var bool
+     * @var string $moduleName
      */
-    protected $defer = false;
+    protected $moduleName = \'Blog\';
+
+    /**
+     * @var string $moduleNameLower
+     */
+    protected $moduleNameLower = \'blog\';
 
     /**
      * Boot the application events.
@@ -25,7 +28,7 @@ class BlogServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->registerFactories();
-        $this->loadMigrationsFrom(__DIR__ . \'/../migrations\');
+        $this->loadMigrationsFrom(module_path($this->moduleName, \'migrations\'));
     }
 
     /**
@@ -46,10 +49,10 @@ class BlogServiceProvider extends ServiceProvider
     protected function registerConfig()
     {
         $this->publishes([
-            __DIR__.\'/../Config/config.php\' => config_path(\'blog.php\'),
+            module_path($this->moduleName, \'Config/config.php\') => config_path($this->moduleNameLower . \'.php\'),
         ], \'config\');
         $this->mergeConfigFrom(
-            __DIR__.\'/../Config/config.php\', \'blog\'
+            module_path($this->moduleName, \'Config/config.php\'), $this->moduleNameLower
         );
     }
 
@@ -60,17 +63,15 @@ class BlogServiceProvider extends ServiceProvider
      */
     public function registerViews()
     {
-        $viewPath = resource_path(\'views/modules/blog\');
+        $viewPath = resource_path(\'views/modules/\' . $this->moduleNameLower);
 
-        $sourcePath = __DIR__.\'/../Resources/views\';
+        $sourcePath = module_path($this->moduleName, \'Resources/views\');
 
         $this->publishes([
             $sourcePath => $viewPath
-        ],\'views\');
+        ], [\'views\', $this->moduleNameLower . \'-module-views\']);
 
-        $this->loadViewsFrom(array_merge(array_map(function ($path) {
-            return $path . \'/modules/blog\';
-        }, \\Config::get(\'view.paths\')), [$sourcePath]), \'blog\');
+        $this->loadViewsFrom(array_merge($this->getPublishableViewPaths(), [$sourcePath]), $this->moduleNameLower);
     }
 
     /**
@@ -80,24 +81,24 @@ class BlogServiceProvider extends ServiceProvider
      */
     public function registerTranslations()
     {
-        $langPath = resource_path(\'lang/modules/blog\');
+        $langPath = resource_path(\'lang/modules/\' . $this->moduleNameLower);
 
         if (is_dir($langPath)) {
-            $this->loadTranslationsFrom($langPath, \'blog\');
+            $this->loadTranslationsFrom($langPath, $this->moduleNameLower);
         } else {
-            $this->loadTranslationsFrom(__DIR__ .\'/../Resources/lang\', \'blog\');
+            $this->loadTranslationsFrom(module_path($this->moduleName, \'Resources/lang\'), $this->moduleNameLower);
         }
     }
 
     /**
      * Register an additional directory of factories.
-     * 
+     *
      * @return void
      */
     public function registerFactories()
     {
-        if (! app()->environment(\'production\')) {
-            app(Factory::class)->load(__DIR__ . \'/../Database/factories\');
+        if (! app()->environment(\'production\') && $this->app->runningInConsole()) {
+            app(Factory::class)->load(module_path($this->moduleName, \'Database/factories\'));
         }
     }
 
@@ -109,6 +110,17 @@ class BlogServiceProvider extends ServiceProvider
     public function provides()
     {
         return [];
+    }
+
+    private function getPublishableViewPaths(): array
+    {
+        $paths = [];
+        foreach (\\Config::get(\'view.paths\') as $path) {
+            if (is_dir($path . \'/modules/\' . $this->moduleNameLower)) {
+                $paths[] = $path . \'/modules/\' . $this->moduleNameLower;
+            }
+        }
+        return $paths;
     }
 }
 ';

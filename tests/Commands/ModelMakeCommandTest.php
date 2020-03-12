@@ -3,6 +3,7 @@
 namespace Nwidart\Modules\Tests\Commands;
 
 use Illuminate\Support\Facades\Artisan;
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -18,7 +19,7 @@ class ModelMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -26,9 +27,9 @@ class ModelMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -93,7 +94,7 @@ class ModelMakeCommandTest extends BaseTestCase
         $migrationFile = $migrations[0];
         $migrationContent = $this->finder->get($this->modulePath . '/Database/Migrations/' . $migrationFile->getFilename());
 
-        $this->assertContains('create_product_details_table', $migrationFile->getFilename());
+        $this->assertStringContainsString('create_product_details_table', $migrationFile->getFilename());
         $this->assertMatchesSnapshot($migrationContent);
     }
 
@@ -103,7 +104,7 @@ class ModelMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-model', ['model' => 'Post', 'module' => 'Blog']);
         $this->artisan('module:make-model', ['model' => 'Post', 'module' => 'Blog']);
 
-        $this->assertContains('already exists', Artisan::output());
+        $this->assertStringContainsString('already exists', Artisan::output());
     }
 
     /** @test */
@@ -114,6 +115,18 @@ class ModelMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-model', ['model' => 'Post', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/Models/Post.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.model.namespace', 'Models');
+
+        $this->artisan('module:make-model', ['model' => 'Post', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Entities/Post.php');
 
         $this->assertMatchesSnapshot($file);
     }

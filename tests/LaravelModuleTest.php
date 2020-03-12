@@ -4,8 +4,8 @@ namespace Nwidart\Modules\Tests;
 
 use Modules\Recipe\Providers\DeferredServiceProvider;
 use Modules\Recipe\Providers\RecipeServiceProvider;
+use Nwidart\Modules\Contracts\ActivatorInterface;
 use Nwidart\Modules\Json;
-use Nwidart\Modules\Module;
 
 class ModuleTest extends BaseTestCase
 {
@@ -14,19 +14,31 @@ class ModuleTest extends BaseTestCase
      */
     private $module;
 
-    public function setUp()
+    /**
+     * @var ActivatorInterface
+     */
+    private $activator;
+
+    public function setUp(): void
     {
         parent::setUp();
         $this->module = new TestingModule($this->app, 'Recipe Name', __DIR__ . '/stubs/valid/Recipe');
+        $this->activator = $this->app[ActivatorInterface::class];
     }
 
-    public static function setUpBeforeClass()
+    public function tearDown(): void
+    {
+        $this->activator->reset();
+        parent::tearDown();
+    }
+
+    public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
         symlink(__DIR__ . '/stubs/valid', __DIR__ . '/stubs/valid_symlink');
     }
 
-    public static function tearDownAfterClass()
+    public static function tearDownAfterClass(): void
     {
         parent::tearDownAfterClass();
         unlink(__DIR__ . '/stubs/valid_symlink');
@@ -135,26 +147,24 @@ class ModuleTest extends BaseTestCase
     /** @test */
     public function it_module_status_check()
     {
-        $this->assertTrue($this->module->isStatus(1));
-        $this->assertFalse($this->module->isStatus(0));
+        $this->assertFalse($this->module->isStatus(true));
+        $this->assertTrue($this->module->isStatus(false));
     }
 
     /** @test */
     public function it_checks_module_enabled_status()
     {
-        $this->assertTrue($this->module->enabled());
-        $this->assertFalse($this->module->disabled());
+        $this->assertFalse($this->module->isEnabled());
+        $this->assertTrue($this->module->isDisabled());
     }
 
     /** @test */
-    public function it_fires_events_when_module_is_disabled()
+    public function it_sets_active_status(): void
     {
-        $this->expectsEvents([
-            sprintf('modules.%s.disabling', $this->module->getLowerName()),
-            sprintf('modules.%s.disabled', $this->module->getLowerName()),
-        ]);
-
-        $this->module->disable();
+        $this->module->setActive(true);
+        $this->assertTrue($this->module->isEnabled());
+        $this->module->setActive(false);
+        $this->assertFalse($this->module->isEnabled());
     }
 
     /** @test */
@@ -166,6 +176,17 @@ class ModuleTest extends BaseTestCase
         ]);
 
         $this->module->enable();
+    }
+
+    /** @test */
+    public function it_fires_events_when_module_is_disabled()
+    {
+        $this->expectsEvents([
+            sprintf('modules.%s.disabling', $this->module->getLowerName()),
+            sprintf('modules.%s.disabled', $this->module->getLowerName()),
+        ]);
+
+        $this->module->disable();
     }
 
     /** @test */
@@ -213,7 +234,7 @@ class ModuleTest extends BaseTestCase
             app('foo');
             $this->assertTrue(false, "app('foo') should throw an exception.");
         } catch (\Exception $e) {
-            $this->assertEquals("Class foo does not exist", $e->getMessage());
+            $this->assertEquals('Target class [foo] does not exist.', $e->getMessage());
         }
 
         app('deferred');
@@ -224,7 +245,7 @@ class ModuleTest extends BaseTestCase
 
 class TestingModule extends \Nwidart\Modules\Laravel\Module
 {
-    public function registerProviders()
+    public function registerProviders(): void
     {
         parent::registerProviders();
     }

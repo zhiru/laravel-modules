@@ -13,7 +13,7 @@
                 "Modules\\\Blog\\\Providers\\\BlogServiceProvider"
             ],
             "aliases": {
-                
+
             }
         }
     },

@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -17,7 +18,7 @@ class CommandMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -25,9 +26,9 @@ class CommandMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -52,7 +53,10 @@ class CommandMakeCommandTest extends BaseTestCase
     /** @test */
     public function it_uses_set_command_name_in_class()
     {
-        $this->artisan('module:make-command', ['name' => 'MyAwesomeCommand', 'module' => 'Blog', '--command' => 'my:awesome']);
+        $this->artisan(
+            'module:make-command',
+            ['name' => 'MyAwesomeCommand', 'module' => 'Blog', '--command' => 'my:awesome']
+        );
 
         $file = $this->finder->get($this->modulePath . '/Console/MyAwesomeCommand.php');
 
@@ -67,6 +71,18 @@ class CommandMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-command', ['name' => 'AwesomeCommand', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/Commands/AwesomeCommand.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.command.namespace', 'Commands');
+
+        $this->artisan('module:make-command', ['name' => 'AwesomeCommand', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Console/AwesomeCommand.php');
 
         $this->assertMatchesSnapshot($file);
     }

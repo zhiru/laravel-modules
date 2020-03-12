@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -17,7 +18,7 @@ class JobMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -25,9 +26,9 @@ class JobMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -67,6 +68,18 @@ class JobMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-job', ['name' => 'SomeJob', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/SuperJobs/SomeJob.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.jobs.namespace', 'SuperJobs');
+
+        $this->artisan('module:make-job', ['name' => 'SomeJob', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Jobs/SomeJob.php');
 
         $this->assertMatchesSnapshot($file);
     }

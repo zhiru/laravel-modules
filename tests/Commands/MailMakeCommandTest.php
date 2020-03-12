@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -17,7 +18,7 @@ class MailMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -25,9 +26,9 @@ class MailMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -57,6 +58,18 @@ class MailMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-mail', ['name' => 'SomeMail', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/SuperEmails/SomeMail.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.emails.namespace', 'SuperEmails');
+
+        $this->artisan('module:make-mail', ['name' => 'SomeMail', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Emails/SomeMail.php');
 
         $this->assertMatchesSnapshot($file);
     }

@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -18,7 +19,7 @@ class EventMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -26,9 +27,9 @@ class EventMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -58,6 +59,18 @@ class EventMakeCommandTest extends BaseTestCase
         $this->artisan('module:make-event', ['name' => 'PostWasCreated', 'module' => 'Blog']);
 
         $file = $this->finder->get($this->modulePath . '/SuperEvents/PostWasCreated.php');
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_can_change_the_default_namespace_specific()
+    {
+        $this->app['config']->set('modules.paths.generator.event.namespace', 'SuperEvents');
+
+        $this->artisan('module:make-event', ['name' => 'PostWasCreated', 'module' => 'Blog']);
+
+        $file = $this->finder->get($this->modulePath . '/Events/PostWasCreated.php');
 
         $this->assertMatchesSnapshot($file);
     }

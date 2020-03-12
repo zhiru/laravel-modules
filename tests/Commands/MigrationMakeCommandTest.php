@@ -2,6 +2,7 @@
 
 namespace Nwidart\Modules\Tests\Commands;
 
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -17,7 +18,7 @@ class MigrationMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
@@ -25,9 +26,9 @@ class MigrationMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
-        $this->finder->deleteDirectory($this->modulePath);
+        $this->app[RepositoryInterface::class]->delete('Blog');
         parent::tearDown();
     }
 
@@ -93,6 +94,18 @@ class MigrationMakeCommandTest extends BaseTestCase
     public function it_generates_correct_default_migration_file_content()
     {
         $this->artisan('module:make-migration', ['name' => 'something_random_name', 'module' => 'Blog']);
+
+        $migrations = $this->finder->allFiles($this->modulePath . '/Database/Migrations');
+        $fileName = $migrations[0]->getRelativePathname();
+        $file = $this->finder->get($this->modulePath . '/Database/Migrations/' . $fileName);
+
+        $this->assertMatchesSnapshot($file);
+    }
+
+    /** @test */
+    public function it_generates_foreign_key_constraints()
+    {
+        $this->artisan('module:make-migration', ['name' => 'create_posts_table', 'module' => 'Blog', '--fields' => 'belongsTo:user:id:users']);
 
         $migrations = $this->finder->allFiles($this->modulePath . '/Database/Migrations');
         $fileName = $migrations[0]->getRelativePathname();

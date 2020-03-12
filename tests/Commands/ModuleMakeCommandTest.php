@@ -3,6 +3,9 @@
 namespace Nwidart\Modules\Tests\Commands;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
+use Nwidart\Modules\Contracts\ActivatorInterface;
+use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Tests\BaseTestCase;
 use Spatie\Snapshots\MatchesSnapshots;
 
@@ -18,19 +21,31 @@ class ModuleMakeCommandTest extends BaseTestCase
      */
     private $modulePath;
 
-    public function setUp()
+    /**
+     * @var ActivatorInterface
+     */
+    private $activator;
+    /**
+     * @var RepositoryInterface
+     */
+    private $repository;
+
+    public function setUp(): void
     {
         parent::setUp();
         $this->modulePath = base_path('modules/Blog');
         $this->finder = $this->app['files'];
+        $this->repository = $this->app[RepositoryInterface::class];
+        $this->activator = $this->app[ActivatorInterface::class];
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
         $this->finder->deleteDirectory($this->modulePath);
         if ($this->finder->isDirectory(base_path('modules/ModuleName'))) {
             $this->finder->deleteDirectory(base_path('modules/ModuleName'));
         }
+        $this->activator->reset();
         parent::tearDown();
     }
 
@@ -39,7 +54,7 @@ class ModuleMakeCommandTest extends BaseTestCase
     {
         $code = $this->artisan('module:make', ['name' => ['Blog']]);
 
-        $this->assertTrue(is_dir($this->modulePath));
+        $this->assertDirectoryExists($this->modulePath);
         $this->assertSame(0, $code);
     }
 
@@ -49,7 +64,7 @@ class ModuleMakeCommandTest extends BaseTestCase
         $this->artisan('module:make', ['name' => ['Blog']]);
 
         foreach (config('modules.paths.generator') as $directory) {
-            $this->assertTrue(is_dir($this->modulePath . '/' . $directory['path']));
+            $this->assertDirectoryExists($this->modulePath . '/' . $directory['path']);
         }
     }
 
@@ -210,7 +225,7 @@ class ModuleMakeCommandTest extends BaseTestCase
         $notExpected = 'Module [Blog] already exist!
 ';
         $this->assertNotEquals($notExpected, $output);
-        $this->assertTrue(str_contains($output, 'Module [Blog] created successfully.'));
+        $this->assertTrue(Str::contains($output, 'Module [Blog] created successfully.'));
     }
 
     /** @test */
@@ -244,10 +259,10 @@ class ModuleMakeCommandTest extends BaseTestCase
 
         $this->artisan('module:make', ['name' => ['Blog']]);
 
-        $this->assertTrue(is_dir($this->modulePath . '/Assets'));
-        $this->assertTrue(is_dir($this->modulePath . '/Emails'));
-        $this->assertFalse(is_dir($this->modulePath . '/Rules'));
-        $this->assertFalse(is_dir($this->modulePath . '/Policies'));
+        $this->assertDirectoryExists($this->modulePath . '/Assets');
+        $this->assertDirectoryExists($this->modulePath . '/Emails');
+        $this->assertDirectoryNotExists($this->modulePath . '/Rules');
+        $this->assertDirectoryNotExists($this->modulePath . '/Policies');
     }
 
     /** @test */
@@ -258,8 +273,8 @@ class ModuleMakeCommandTest extends BaseTestCase
 
         $this->artisan('module:make', ['name' => ['Blog']]);
 
-        $this->assertFalse(is_dir($this->modulePath . '/Assets'));
-        $this->assertFalse(is_dir($this->modulePath . '/Emails'));
+        $this->assertDirectoryNotExists($this->modulePath . '/Assets');
+        $this->assertDirectoryNotExists($this->modulePath . '/Emails');
     }
 
     /** @test */
@@ -270,7 +285,51 @@ class ModuleMakeCommandTest extends BaseTestCase
 
         $this->artisan('module:make', ['name' => ['Blog']]);
 
-        $this->assertFalse(is_dir($this->modulePath . '/Assets'));
-        $this->assertFalse(is_dir($this->modulePath . '/Emails'));
+        $this->assertDirectoryNotExists($this->modulePath . '/Assets');
+        $this->assertDirectoryNotExists($this->modulePath . '/Emails');
+    }
+
+    /** @test */
+    public function it_can_ignore_resource_folders_to_generate()
+    {
+        $this->app['config']->set('modules.paths.generator.seeder', ['path' => 'Database/Seeders', 'generate' => false]);
+        $this->app['config']->set('modules.paths.generator.provider', ['path' => 'Providers', 'generate' => false]);
+        $this->app['config']->set('modules.paths.generator.controller', ['path' => 'Http/Controllers', 'generate' => false]);
+
+        $this->artisan('module:make', ['name' => ['Blog']]);
+
+        $this->assertDirectoryNotExists($this->modulePath . '/Database/Seeders');
+        $this->assertDirectoryNotExists($this->modulePath . '/Providers');
+        $this->assertDirectoryNotExists($this->modulePath . '/Http/Controllers');
+    }
+
+    /** @test */
+    public function it_generates_enabled_module()
+    {
+        $this->artisan('module:make', ['name' => ['Blog']]);
+
+        $this->assertTrue($this->repository->isEnabled('Blog'));
+    }
+
+    /** @test */
+    public function it_generates_disabled_module_with_disabled_flag()
+    {
+        $this->artisan('module:make', ['name' => ['Blog'], '--disabled' => true]);
+
+        $this->assertTrue($this->repository->isDisabled('Blog'));
+    }
+
+    /** @test */
+    public function it_generes_module_with_new_provider_location()
+    {
+        $this->app['config']->set('modules.paths.generator.provider', ['path' => 'Base/Providers', 'generate' => true]);
+
+        $this->artisan('module:make', ['name' => ['Blog']]);
+
+        $this->assertDirectoryExists($this->modulePath . '/Base/Providers');
+        $file = $this->finder->get($this->modulePath . '/module.json');
+        $this->assertMatchesSnapshot($file);
+        $file = $this->finder->get($this->modulePath . '/composer.json');
+        $this->assertMatchesSnapshot($file);
     }
 }
